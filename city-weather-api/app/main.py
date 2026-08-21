@@ -4,7 +4,7 @@ import httpx
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.schemas import City
+from app.schemas import City, Temperature
 from app import models
 from app.database import engine, get_db
 
@@ -151,18 +151,14 @@ async def update_temperatures(db: Session = Depends(get_db)):
     return {"message": "Temperatures updated"}
 
 
-@app.get("/temperatures")
-def get_temperatures(db: Session = Depends(get_db)):
-    return db.query(models.Temperature).all()
+@app.get("/temperatures", response_model=list[Temperature])
+def get_temperatures(
+    city_id: int | None = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Temperature)
 
+    if city_id is not None:
+        query = query.filter(models.Temperature.city_id == city_id)
 
-@app.get("/temperatures/city_id={city_id}")
-def get_city_temperatures(city_id: int, db: Session = Depends(get_db)):
-    city = db.query(models.City).filter(models.City.id == city_id).first()
-
-    if city is None:
-        raise HTTPException(status_code=404, detail="City not found")
-
-    return db.query(models.Temperature).filter(
-        models.Temperature.city_id == city_id
-    ).all()
+    return query.all()
